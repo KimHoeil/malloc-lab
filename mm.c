@@ -153,7 +153,7 @@ void *mm_malloc(size_t size)
     if (size <= DSIZE)
         asize = 2 * DSIZE; // 최소 블록 크기 16바이트 할당 (헤더4, 푸터4, 저장공간 8)
     else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE); // 8배수로 올림처리
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE); // 8의 배수로 올림처리
 
     /* Search the free list for a fit */
     if ((bp = find_fit(asize)) != NULL)
@@ -180,6 +180,7 @@ static void *find_fit(size_t asize)
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
             return bp;
     }
+
 #elif defined(NEXT_FIT)
     if (last_allocated == NULL)
         last_allocated = heap_listp;
@@ -193,6 +194,8 @@ static void *find_fit(size_t asize)
         }
     }
 
+    // 마지막 위치부터 할당할 곳을 못찾았다면, 처음부터 재탐색 시작.
+    // last_allocated 뒤로는 할당할 곳이 없으므로 last_allocated까지만 탐색
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 && last_allocated > bp; bp = NEXT_BLKP(bp))
     {
         if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
@@ -210,9 +213,7 @@ static void *find_fit(size_t asize)
         {
             // 기존에 할당하려던 공간보다 더 최적의 공간이 나타났을 경우 리턴 블록 포인터 갱신
             if (!best_fit || GET_SIZE(HDRP(bp)) < GET_SIZE(HDRP(best_fit)))
-            {
                 best_fit = bp;
-            }
         }
     }
     return best_fit;
@@ -287,7 +288,7 @@ static void *coalesce(void *bp)
         bp = PREV_BLKP(bp);
     }
 
-    last_allocated = bp;
+    last_allocated = bp; // 통합해준후 next-fit 탐색시 사용하기 위해 last_allocated 포인터 갱신
     return bp;
 }
 
